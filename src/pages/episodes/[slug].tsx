@@ -1,14 +1,13 @@
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { GetStaticPaths, GetStaticProps } from "next"
-
 import Image from "next/image";
 import Link from "next/link";
-
 import { api } from "../../services/api"
 import { convertDurationToTimeString } from "../../utils/convertDurationToTimeString";
-
 import styles from './episode.module.scss'
+
+import { useRouter } from 'next/router'
 
 type Episode = {
     id: string;
@@ -27,6 +26,12 @@ type EpisodeProps = {
 }
 
 export default function Episode({ episode }: EpisodeProps) {
+    const router = useRouter()
+
+    if (router.isFallback) {
+        return <p>Carregando...</p>
+    }
+
     return (
         <div className={styles.episode}>
             <div className={styles.thumbnailContainer}>
@@ -56,7 +61,8 @@ export default function Episode({ episode }: EpisodeProps) {
             <div
                 className={styles.description}
                 dangerouslySetInnerHTML={{
-                    __html: episode.description
+                    __html:
+                        episode.description
                 }}
             />
         </div>
@@ -64,14 +70,29 @@ export default function Episode({ episode }: EpisodeProps) {
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
+    const { data } = await api.get('episodes', {
+        params: {
+            __limit: 2,
+            __sort: 'published_at',
+            __order: 'desc'
+        }
+    })
+
+    const paths = data.map(episode => ({
+        params: {
+            slug: episode.id
+        }
+    }))
+
     return {
-        paths: [],
+        paths,
         fallback: 'blocking'
     }
 }
 
 export const getStaticProps: GetStaticProps = async (ctx) => {
     const { slug } = ctx.params;
+
     const { data } = await api.get(`/episodes/${slug}`);
 
     const episode = {
